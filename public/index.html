@@ -39,10 +39,13 @@
       </button>
     </nav>
 
-    <div class="header-status">
+    <div class="header-status" style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+      <div id="dbStatusBadge" class="pulse-badge" style="background:rgba(56,189,248,0.1);border-color:rgba(56,189,248,0.25);color:var(--accent-cyan);font-size:0.75rem;">
+        <span id="dbStatusText">⚡ DB: Đang kết nối...</span>
+      </div>
       <div class="pulse-badge">
         <div class="pulse-dot" id="liveStatusDot"></div>
-        <span id="liveStatusText">Live System: Trực tuyến</span>
+        <span id="liveStatusText">Live: Trực tuyến</span>
       </div>
     </div>
   </header>

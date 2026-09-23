@@ -185,6 +185,23 @@ async function loadOverview() {
 
     document.getElementById('kpiErrors24h').textContent = formatNumber(data.errors24h);
 
+    // Database Engine indicator
+    const dbBadge = document.getElementById('dbStatusBadge');
+    const dbText = document.getElementById('dbStatusText');
+    if (dbBadge && dbText) {
+      if (data.engine === 'supabase') {
+        dbText.innerHTML = '⚡ DB: <strong>Supabase Cloud</strong>';
+        dbBadge.style.color = '#34d399';
+        dbBadge.style.borderColor = 'rgba(52, 211, 153, 0.4)';
+        dbBadge.style.background = 'rgba(52, 211, 153, 0.15)';
+      } else {
+        dbText.innerHTML = '💾 DB: <strong>Local Storage</strong>';
+        dbBadge.style.color = '#94a3b8';
+        dbBadge.style.borderColor = 'rgba(148, 163, 184, 0.2)';
+        dbBadge.style.background = 'rgba(255, 255, 255, 0.05)';
+      }
+    }
+
     // Platform distribution
     const distContainer = document.getElementById('platformDistributionBadges');
     if (distContainer && data.platformsDistribution) {
