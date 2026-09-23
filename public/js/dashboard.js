@@ -16,6 +16,19 @@ function formatNumber(num) {
   return new Intl.NumberFormat('vi-VN').format(num);
 }
 
+function formatDuration(seconds) {
+  if (!seconds || seconds <= 0) return '0 giây';
+  if (seconds < 60) return `${seconds} giây`;
+  const m = Math.floor(seconds / 60);
+  const s = seconds % 60;
+  if (m < 60) {
+    return s > 0 ? `${m}p ${s}s` : `${m} phút`;
+  }
+  const h = Math.floor(m / 60);
+  const remM = m % 60;
+  return `${h}h ${remM}p`;
+}
+
 function timeAgo(dateString) {
   if (!dateString) return 'Chưa rõ';
   const diff = Date.now() - new Date(dateString).getTime();
@@ -157,6 +170,13 @@ async function loadOverview() {
     AppState.overview = data;
 
     document.getElementById('kpiActiveNow').textContent = formatNumber(data.activeNow);
+    
+    const kpiVisitors = document.getElementById('kpiTotalVisitors');
+    if (kpiVisitors) kpiVisitors.textContent = formatNumber(data.totalVisitors || 0);
+
+    const kpiDuration = document.getElementById('kpiAvgDuration');
+    if (kpiDuration) kpiDuration.textContent = formatDuration(data.avgDuration || 0);
+
     document.getElementById('kpiTotalProjects').textContent = formatNumber(data.totalProjects);
     
     const kpiEvents = document.getElementById('kpiEvents24h');
@@ -291,11 +311,18 @@ async function loadProjectDetail(projectId, scrollToTop = true) {
 }
 
 function renderProjectDetail(data) {
-  const { project, timeline, topPages, devices, operatingSystems, browsers, recentEvents, recentErrors } = data;
+  const { project, timeline, topPages, topClicks, devices, operatingSystems, browsers, recentEvents, recentErrors } = data;
 
   document.getElementById('detailProjectTitle').textContent = project.name;
   document.getElementById('detailProjectId').textContent = `ID: ${project.id}`;
   document.getElementById('detailActiveNow').textContent = formatNumber(project.active_now);
+  
+  const vEl = document.getElementById('detailTotalVisitors');
+  if (vEl) vEl.textContent = formatNumber(project.total_visitors || 0);
+
+  const dEl = document.getElementById('detailAvgDuration');
+  if (dEl) dEl.textContent = formatDuration(project.avg_duration || 0);
+
   document.getElementById('detailTotalEvents').textContent = formatNumber(project.total_events);
   document.getElementById('detailTotalSessions').textContent = formatNumber(project.total_sessions);
   document.getElementById('detailTotalErrors').textContent = formatNumber(project.total_errors);
@@ -314,8 +341,8 @@ function renderProjectDetail(data) {
   // Top Pages / Screens
   const topPagesContainer = document.getElementById('topPagesList');
   if (topPagesContainer) {
-    if (topPages.length === 0) {
-      topPagesContainer.innerHTML = '<tr><td colspan="3" style="text-align:center">Chưa có dữ liệu</td></tr>';
+    if (!topPages || topPages.length === 0) {
+      topPagesContainer.innerHTML = '<tr><td colspan="3" style="text-align:center;color:var(--text-dim)">Chưa có dữ liệu</td></tr>';
     } else {
       const maxViews = Math.max(...topPages.map(p => p.views), 1);
       topPagesContainer.innerHTML = topPages.map(p => {
@@ -323,12 +350,41 @@ function renderProjectDetail(data) {
         return `
           <tr>
             <td style="font-family:monospace;color:#fff">${escapeHtml(p.path_or_screen)}</td>
-            <td style="width:160px">
+            <td style="width:140px">
               <div class="progress-container">
                 <div class="progress-bar"><div class="progress-fill" style="width:${pct}%"></div></div>
               </div>
             </td>
             <td style="text-align:right;font-weight:600">${formatNumber(p.views)}</td>
+          </tr>
+        `;
+      }).join('');
+    }
+  }
+
+  // Top Features / Buttons Clicked
+  const topClicksContainer = document.getElementById('topClicksList');
+  if (topClicksContainer) {
+    if (!topClicks || topClicks.length === 0) {
+      topClicksContainer.innerHTML = '<tr><td colspan="3" style="text-align:center;color:var(--text-dim)">Chưa có dữ liệu nút bấm / click</td></tr>';
+    } else {
+      const maxClicks = Math.max(...topClicks.map(c => c.count), 1);
+      const medals = ['🥇', '🥈', '🥉'];
+      topClicksContainer.innerHTML = topClicks.map((item, idx) => {
+        const pct = Math.round((item.count / maxClicks) * 100);
+        const medal = medals[idx] || `<span style="opacity:0.6">${idx + 1}.</span>`;
+        return `
+          <tr>
+            <td style="color:#fff;font-weight:500">
+              <span style="margin-right:6px">${medal}</span>
+              <span>${escapeHtml(item.event_name)}</span>
+            </td>
+            <td style="width:140px">
+              <div class="progress-container">
+                <div class="progress-bar"><div class="progress-fill" style="width:${pct}%;background:linear-gradient(90deg, #38bdf8, #818cf8)"></div></div>
+              </div>
+            </td>
+            <td style="text-align:right;font-weight:600;color:#38bdf8">${formatNumber(item.count)}</td>
           </tr>
         `;
       }).join('');

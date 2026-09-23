@@ -133,15 +133,36 @@ try {
               const [sessionId] = params;
               return memoryStore.sessions[sessionId] || undefined;
             }
-            if (norm.includes('COUNT(DISTINCT SESSION_ID)') && norm.includes('PROJECT_ID = ?')) {
+            if (norm.includes('COUNT(DISTINCT SESSION_ID)') && norm.includes('PROJECT_ID = ?') && norm.includes('LAST_ACTIVE_AT')) {
               const [projectId, timeThreshold] = params;
               const count = Object.values(memoryStore.sessions).filter(s => s.project_id === projectId && s.last_active_at >= timeThreshold).length;
               return { count };
             }
-            if (norm.includes('COUNT(DISTINCT SESSION_ID)')) {
+            if (norm.includes('COUNT(DISTINCT SESSION_ID)') && norm.includes('PROJECT_ID = ?')) {
+              const [projectId] = params;
+              const count = Object.values(memoryStore.sessions).filter(s => s.project_id === projectId).length;
+              return { count };
+            }
+            if (norm.includes('COUNT(DISTINCT SESSION_ID)') && norm.includes('LAST_ACTIVE_AT')) {
               const [timeThreshold] = params;
               const active = Object.values(memoryStore.sessions).filter(s => s.last_active_at >= timeThreshold);
               return { count: active.length };
+            }
+            if (norm.includes('COUNT(DISTINCT SESSION_ID)')) {
+              return { count: Object.keys(memoryStore.sessions).length };
+            }
+            if (norm.includes('AVG(DURATION_SECONDS)') && norm.includes('PROJECT_ID = ?')) {
+              const [projectId] = params;
+              const sess = Object.values(memoryStore.sessions).filter(s => s.project_id === projectId && (s.duration_seconds || 0) > 0);
+              if (sess.length === 0) return { avg_duration: 0 };
+              const total = sess.reduce((sum, s) => sum + (s.duration_seconds || 0), 0);
+              return { avg_duration: Math.round(total / sess.length) };
+            }
+            if (norm.includes('AVG(DURATION_SECONDS)')) {
+              const sess = Object.values(memoryStore.sessions).filter(s => (s.duration_seconds || 0) > 0);
+              if (sess.length === 0) return { avg_duration: 0 };
+              const total = sess.reduce((sum, s) => sum + (s.duration_seconds || 0), 0);
+              return { avg_duration: Math.round(total / sess.length) };
             }
             if (norm.includes('COUNT(*) AS COUNT FROM PROJECTS') || norm.includes('COUNT(*) FROM PROJECTS')) {
               return { count: Object.keys(memoryStore.projects).length };
@@ -195,6 +216,15 @@ try {
                 pageMap[p] = (pageMap[p] || 0) + 1;
               });
               return Object.entries(pageMap).map(([path_or_screen, views]) => ({ path_or_screen, views })).sort((a, b) => b.views - a.views).slice(0, 10);
+            }
+            if (norm.includes('EVENT_NAME') && norm.includes('GROUP BY') && (norm.includes('CLICK') || norm.includes('CUSTOM'))) {
+              const [projectId] = params;
+              const clickMap = {};
+              memoryStore.events.filter(e => e.project_id === projectId && ['click', 'action', 'custom'].includes(e.event_type)).forEach(e => {
+                const name = e.event_name || 'Action';
+                clickMap[name] = (clickMap[name] || 0) + 1;
+              });
+              return Object.entries(clickMap).map(([event_name, count]) => ({ event_name, count })).sort((a, b) => b.count - a.count).slice(0, 10);
             }
             if (norm.includes('DEVICE_TYPE') && norm.includes('GROUP BY')) {
               const [projectId] = params;

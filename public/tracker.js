@@ -107,7 +107,7 @@
     });
   }
 
-  // 7. Heartbeat định kỳ (mỗi 25 giây)
+  // 7. Heartbeat định kỳ (mỗi 20 giây) & khi chuyển/đóng tab để đo chính xác thời gian dùng
   function sendHeartbeat() {
     sendPayload('/api/v1/heartbeat', {
       projectId: projectId,
@@ -115,17 +115,74 @@
     });
   }
 
+  // 8. Tự động theo dõi các nút bấm và tính năng người dùng hay ấn (Auto-Click Tracker)
+  function setupAutoClickTracking() {
+    document.addEventListener('click', function (e) {
+      try {
+        var target = e.target;
+        if (!target) return;
+        var clickable = target.closest('button, a, [data-track], [role="button"], input[type="button"], input[type="submit"]');
+        if (!clickable) return;
+
+        var label = '';
+        if (clickable.getAttribute('data-track')) {
+          label = clickable.getAttribute('data-track');
+        } else if (clickable.getAttribute('aria-label')) {
+          label = clickable.getAttribute('aria-label');
+        } else if (clickable.innerText && clickable.innerText.trim()) {
+          label = clickable.innerText.trim().replace(/\s+/g, ' ').substring(0, 50);
+        } else if (clickable.getAttribute('title')) {
+          label = clickable.getAttribute('title');
+        } else if (clickable.id) {
+          label = '#' + clickable.id;
+        } else if (clickable.tagName && clickable.tagName.toLowerCase() === 'a' && clickable.getAttribute('href')) {
+          label = 'Link: ' + clickable.getAttribute('href');
+        } else {
+          label = clickable.tagName ? clickable.tagName.toLowerCase() : 'element';
+        }
+
+        var eventName = 'Nút: ' + label;
+
+        sendPayload('/api/v1/track', {
+          projectId: projectId,
+          sessionId: sessionId,
+          userId: userId,
+          platform: 'web',
+          eventType: 'click',
+          eventName: eventName,
+          path: window.location.pathname,
+          properties: {
+            tag: clickable.tagName ? clickable.tagName.toLowerCase() : '',
+            id: clickable.id || '',
+            text: label
+          }
+        });
+      } catch (err) {}
+    }, true);
+  }
+
   // Tự động kích hoạt khi trang tải xong
   if (document.readyState === 'complete' || document.readyState === 'interactive') {
     trackPageView();
+    setupAutoClickTracking();
   } else {
     window.addEventListener('DOMContentLoaded', function () {
       trackPageView();
+      setupAutoClickTracking();
     });
   }
 
   // Heartbeat timer
-  setInterval(sendHeartbeat, 25000);
+  setInterval(sendHeartbeat, 20000);
+
+  // Ghi nhận thời gian dùng khi người dùng ẩn tab hoặc rời trang
+  window.addEventListener('visibilitychange', function () {
+    if (document.visibilityState === 'hidden') {
+      sendHeartbeat();
+    }
+  });
+  window.addEventListener('pagehide', sendHeartbeat);
+  window.addEventListener('beforeunload', sendHeartbeat);
 
   // 8. Tự động hỗ trợ SPA Routing (React, Vue, Next.js, Angular, v.v.)
   var lastPathname = window.location.pathname;

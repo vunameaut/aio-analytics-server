@@ -62,6 +62,24 @@
           <div class="kpi-sub">Người dùng / thiết bị đang tương tác</div>
         </div>
 
+        <div class="glass-card kpi-card" style="border-left:4px solid #a855f7;">
+          <div class="kpi-header">
+            <span class="kpi-title">Tổng Người Dùng</span>
+            <div class="kpi-icon" style="color:#c084fc">👥</div>
+          </div>
+          <div class="kpi-value" id="kpiTotalVisitors" style="color:#c084fc">0</div>
+          <div class="kpi-sub">Khách truy cập duy nhất (Unique)</div>
+        </div>
+
+        <div class="glass-card kpi-card" style="border-left:4px solid #f59e0b;">
+          <div class="kpi-header">
+            <span class="kpi-title">Thời Gian Dùng TB</span>
+            <div class="kpi-icon" style="color:#fbbf24">⏱️</div>
+          </div>
+          <div class="kpi-value" id="kpiAvgDuration" style="color:#fbbf24">0s</div>
+          <div class="kpi-sub">Thời lượng tương tác mỗi phiên</div>
+        </div>
+
         <div class="glass-card kpi-card cyan">
           <div class="kpi-header">
             <span class="kpi-title">Tổng số Dự án</span>
@@ -150,22 +168,30 @@
             <div id="detailPlatforms" style="display:flex;gap:6px;"></div>
           </div>
         </div>
-        <div style="display:flex;gap:2rem;text-align:right;">
+        <div style="display:flex;gap:1.5rem;text-align:right;flex-wrap:wrap;">
           <div>
             <div style="font-size:0.75rem;color:var(--text-dim)">ĐANG ONLINE</div>
-            <div id="detailActiveNow" style="font-size:1.6rem;font-weight:700;color:#34d399">0</div>
+            <div id="detailActiveNow" style="font-size:1.5rem;font-weight:700;color:#34d399">0</div>
+          </div>
+          <div>
+            <div style="font-size:0.75rem;color:var(--text-dim)">NGƯỜI DÙNG</div>
+            <div id="detailTotalVisitors" style="font-size:1.5rem;font-weight:700;color:#c084fc">0</div>
+          </div>
+          <div>
+            <div style="font-size:0.75rem;color:var(--text-dim)">THỜI GIAN TB</div>
+            <div id="detailAvgDuration" style="font-size:1.5rem;font-weight:700;color:#fbbf24">0s</div>
           </div>
           <div>
             <div style="font-size:0.75rem;color:var(--text-dim)">TỔNG PHIÊN</div>
-            <div id="detailTotalSessions" style="font-size:1.6rem;font-weight:700;color:#38bdf8">0</div>
+            <div id="detailTotalSessions" style="font-size:1.5rem;font-weight:700;color:#38bdf8">0</div>
           </div>
           <div>
             <div style="font-size:0.75rem;color:var(--text-dim)">SỰ KIỆN</div>
-            <div id="detailTotalEvents" style="font-size:1.6rem;font-weight:700;color:#fff">0</div>
+            <div id="detailTotalEvents" style="font-size:1.5rem;font-weight:700;color:#fff">0</div>
           </div>
           <div>
             <div style="font-size:0.75rem;color:var(--text-dim)">LỖI / CRASH</div>
-            <div id="detailTotalErrors" style="font-size:1.6rem;font-weight:700;color:#fb7185">0</div>
+            <div id="detailTotalErrors" style="font-size:1.5rem;font-weight:700;color:#fb7185">0</div>
           </div>
         </div>
       </div>
@@ -173,19 +199,19 @@
       <!-- Timeline Chart -->
       <div class="glass-card chart-card">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;">
-          <h3 style="font-size:1rem;font-weight:600;color:var(--text-muted)">Lưu lượng 7 ngày gần nhất</h3>
+          <h3 style="font-size:1rem;font-weight:600;color:var(--text-muted)">Lưu lượng & Người dùng 7 ngày gần nhất</h3>
         </div>
         <div style="height:260px;position:relative;">
           <canvas id="timelineChart"></canvas>
         </div>
       </div>
 
-      <!-- Top Pages & Breakdown -->
+      <!-- Two-col: Top Pages & Top Clicked Features -->
       <div class="stats-two-col">
         <!-- Top Pages -->
         <div class="glass-card">
-          <h3 style="font-size:1rem;font-weight:600;margin-bottom:1rem;color:var(--text-muted)">
-            Top Trang / Màn hình (Screen Views)
+          <h3 style="font-size:1rem;font-weight:600;margin-bottom:1rem;color:var(--text-muted);display:flex;align-items:center;gap:8px;">
+            <span>📄</span> Top Trang / Màn hình xem nhiều nhất
           </h3>
           <div class="data-table-wrapper">
             <table class="data-table">
@@ -203,27 +229,52 @@
           </div>
         </div>
 
-        <!-- Devices, OS, Browsers Breakdown -->
-        <div class="glass-card" style="display:flex;flex-direction:column;gap:1.5rem;">
+        <!-- Top Features & Buttons Clicked -->
+        <div class="glass-card">
+          <h3 style="font-size:1rem;font-weight:600;margin-bottom:1rem;color:#38bdf8;display:flex;align-items:center;gap:8px;">
+            <span>👆</span> Chức năng & Nút bấm hay ấn nhất
+          </h3>
+          <div class="data-table-wrapper">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Chức năng / Nút bấm</th>
+                  <th>Tỉ lệ</th>
+                  <th style="text-align:right">Số lượt ấn</th>
+                </tr>
+              </thead>
+              <tbody id="topClicksList">
+                <!-- Rendered dynamically -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- Devices, OS, Browsers Breakdown -->
+      <div class="glass-card" style="margin-top:1.5rem;">
+        <h3 style="font-size:1rem;font-weight:600;margin-bottom:1rem;color:var(--text-muted)">
+          Phân bố Môi trường Thiết bị & Trình duyệt
+        </h3>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(280px, 1fr));gap:1.5rem;">
           <div>
-            <h3 style="font-size:1rem;font-weight:600;margin-bottom:0.75rem;color:var(--text-muted)">Thiết bị (Devices)</h3>
+            <h4 style="font-size:0.9rem;font-weight:600;margin-bottom:0.75rem;color:var(--accent-cyan)">Thiết bị (Devices)</h4>
             <table class="data-table">
               <tbody id="devicesList"></tbody>
             </table>
           </div>
           <div>
-            <h3 style="font-size:1rem;font-weight:600;margin-bottom:0.75rem;color:var(--text-muted)">Hệ điều hành (OS)</h3>
+            <h4 style="font-size:0.9rem;font-weight:600;margin-bottom:0.75rem;color:var(--accent-blue)">Hệ điều hành (OS)</h4>
             <table class="data-table">
               <tbody id="osList"></tbody>
             </table>
           </div>
           <div>
-            <h3 style="font-size:1rem;font-weight:600;margin-bottom:0.75rem;color:var(--text-muted)">Trình duyệt / Engine</h3>
+            <h4 style="font-size:0.9rem;font-weight:600;margin-bottom:0.75rem;color:#a855f7">Trình duyệt / Engine</h4>
             <table class="data-table">
               <tbody id="browsersList"></tbody>
             </table>
           </div>
-        </div>
       </div>
 
       <!-- Recent Events Stream -->

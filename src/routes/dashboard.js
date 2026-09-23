@@ -30,21 +30,31 @@ router.get('/overview', (req, res) => {
     // 2. Tổng số dự án
     const totalProjectsRow = db.prepare(`SELECT COUNT(*) as count FROM projects`).get();
 
-    // 3. Tổng số sự kiện trong 24h qua
+    // 3. Tổng số người dùng duy nhất (Visitors)
+    const totalVisitorsRow = db.prepare(`SELECT COUNT(DISTINCT session_id) as count FROM sessions`).get();
+
+    // 4. Thời gian dùng trung bình (giây)
+    const avgDurationRow = db.prepare(`
+      SELECT AVG(duration_seconds) as avg_duration 
+      FROM sessions 
+      WHERE duration_seconds > 0
+    `).get();
+
+    // 5. Tổng số sự kiện trong 24h qua
     const events24hRow = db.prepare(`
       SELECT COUNT(*) as count 
       FROM events 
       WHERE created_at >= ?
     `).get(twentyFourHoursAgo);
 
-    // 4. Tổng số lỗi trong 24h qua
+    // 6. Tổng số lỗi trong 24h qua
     const errors24hRow = db.prepare(`
       SELECT COUNT(*) as count 
       FROM errors 
       WHERE created_at >= ?
     `).get(twentyFourHoursAgo);
 
-    // 5. Phân bổ theo nền tảng
+    // 7. Phân bổ theo nền tảng
     const platformsDistribution = db.prepare(`
       SELECT platform, COUNT(DISTINCT session_id) as sessions_count
       FROM sessions
@@ -55,6 +65,8 @@ router.get('/overview', (req, res) => {
     return res.json({
       activeNow: activeNowRow?.count || 0,
       totalProjects: totalProjectsRow?.count || 0,
+      totalVisitors: totalVisitorsRow?.count || 0,
+      avgDuration: Math.round(avgDurationRow?.avg_duration || 0),
       events24h: events24hRow?.count || 0,
       errors24h: errors24hRow?.count || 0,
       platformsDistribution
@@ -136,7 +148,21 @@ router.get('/projects/:id', (req, res) => {
       WHERE project_id = ? AND last_active_at >= ?
     `).get(id, fiveMinutesAgo)?.count || 0;
 
-    // 2. Timeline sự kiện 7 ngày qua (theo ngày)
+    // 2. Tổng số khách truy cập duy nhất của dự án này
+    const totalVisitors = db.prepare(`
+      SELECT COUNT(DISTINCT session_id) as count 
+      FROM sessions 
+      WHERE project_id = ?
+    `).get(id)?.count || 0;
+
+    // 3. Thời gian dùng trung bình (giây) của dự án này
+    const avgDuration = db.prepare(`
+      SELECT AVG(duration_seconds) as avg_duration 
+      FROM sessions 
+      WHERE project_id = ? AND duration_seconds > 0
+    `).get(id)?.avg_duration || 0;
+
+    // 4. Timeline sự kiện 7 ngày qua (theo ngày)
     const timeline = db.prepare(`
       SELECT substr(created_at, 1, 10) as date, COUNT(*) as count, COUNT(DISTINCT session_id) as visitors
       FROM events
@@ -145,7 +171,7 @@ router.get('/projects/:id', (req, res) => {
       ORDER BY date ASC
     `).all(id, sevenDaysAgo);
 
-    // 3. Top trang / Màn hình xem nhiều nhất
+    // 5. Top trang / Màn hình xem nhiều nhất
     const topPages = db.prepare(`
       SELECT path_or_screen, COUNT(*) as views
       FROM events
@@ -155,7 +181,17 @@ router.get('/projects/:id', (req, res) => {
       LIMIT 10
     `).all(id);
 
-    // 4. Phân loại thiết bị
+    // 6. Top chức năng & Nút bấm hay ấn nhất (Clicks & Actions)
+    const topClicks = db.prepare(`
+      SELECT event_name, COUNT(*) as count 
+      FROM events 
+      WHERE project_id = ? AND event_type IN ('click', 'action', 'custom') 
+      GROUP BY event_name 
+      ORDER BY count DESC 
+      LIMIT 10
+    `).all(id);
+
+    // 7. Phân loại thiết bị
     const devices = db.prepare(`
       SELECT device_type, COUNT(*) as count
       FROM sessions
@@ -164,7 +200,7 @@ router.get('/projects/:id', (req, res) => {
       ORDER BY count DESC
     `).all(id);
 
-    // 5. Hệ điều hành
+    // 8. Hệ điều hành
     const operatingSystems = db.prepare(`
       SELECT os_name, COUNT(*) as count
       FROM sessions
@@ -174,7 +210,7 @@ router.get('/projects/:id', (req, res) => {
       LIMIT 6
     `).all(id);
 
-    // 6. Trình duyệt / Client
+    // 9. Trình duyệt / Client
     const browsers = db.prepare(`
       SELECT browser_name, COUNT(*) as count
       FROM sessions
@@ -184,7 +220,7 @@ router.get('/projects/:id', (req, res) => {
       LIMIT 6
     `).all(id);
 
-    // 7. Các sự kiện gần nhất (Stream 40 events)
+    // 10. Các sự kiện gần nhất (Stream 40 events)
     const recentEvents = db.prepare(`
       SELECT *
       FROM events
@@ -193,7 +229,7 @@ router.get('/projects/:id', (req, res) => {
       LIMIT 40
     `).all(id);
 
-    // 8. Các lỗi gần nhất (Errors 20 logs)
+    // 11. Các lỗi gần nhất (Errors 20 logs)
     const recentErrors = db.prepare(`
       SELECT *
       FROM errors
@@ -213,10 +249,13 @@ router.get('/projects/:id', (req, res) => {
       project: {
         ...project,
         platforms_seen: platformsSeen,
-        active_now: activeNow
+        active_now: activeNow,
+        total_visitors: totalVisitors,
+        avg_duration: Math.round(avgDuration)
       },
       timeline,
       topPages,
+      topClicks,
       devices,
       operatingSystems,
       browsers,
