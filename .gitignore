@@ -1,0 +1,7 @@
+node_modules/
+.env
+*.log
+.DS_Store
+# SQLite ephemeral journal files
+data/*.db-wal
+data/*.db-shm

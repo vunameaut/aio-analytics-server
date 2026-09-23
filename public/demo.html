@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Trang Web Demo Thử Nghiệm Tracker</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #0b1120;
+      color: #f8fafc;
+      padding: 2.5rem 1.5rem;
+      max-width: 800px;
+      margin: 0 auto;
+      line-height: 1.6;
+    }
+    .card {
+      background: #1e293b;
+      border: 1px solid rgba(255,255,255,0.1);
+      padding: 1.75rem;
+      border-radius: 12px;
+      margin-bottom: 1.5rem;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+    }
+    h1 { color: #38bdf8; margin-bottom: 0.5rem; font-size: 1.6rem; }
+    p { color: #94a3b8; font-size: 0.95rem; margin-bottom: 1rem; }
+    button {
+      background: #3b82f6;
+      color: #fff;
+      border: none;
+      padding: 10px 18px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-weight: 600;
+      margin-right: 8px;
+      margin-bottom: 8px;
+      transition: 0.2s;
+    }
+    button:hover { background: #2563eb; transform: translateY(-1px); }
+    button.danger { background: #ef4444; }
+    button.danger:hover { background: #dc2626; }
+    button.success { background: #10b981; }
+    button.success:hover { background: #059669; }
+    .status-box {
+      background: #06090e;
+      border: 1px solid rgba(255,255,255,0.08);
+      padding: 14px;
+      border-radius: 8px;
+      font-family: monospace;
+      font-size: 0.88rem;
+      color: #34d399;
+      margin-top: 1.25rem;
+      min-height: 24px;
+    }
+    .badge {
+      display: inline-block;
+      padding: 3px 8px;
+      background: rgba(56,189,248,0.2);
+      color: #38bdf8;
+      border-radius: 6px;
+      font-size: 0.8rem;
+      font-weight: bold;
+    }
+  </style>
+
+  <!-- ĐOẠN MÃ NHÚNG DUY NHẤT: -->
+  <script src="/tracker.js" data-project="my-demo-web-store" async></script>
+</head>
+<body>
+
+  <div class="card">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+      <h1>🌐 Cửa Hàng Trực Tuyến Demo (Web App)</h1>
+      <span class="badge">ĐÃ NHÚNG TRACKER.JS</span>
+    </div>
+    <p>Trang web này đang được nhúng mã <code>&lt;script src="/tracker.js" data-project="my-demo-web-store"&gt;&lt;/script&gt;</code>.</p>
+    <p>Khi trang này tải, server đã <strong>tự động nhận diện đây là nền tảng Web</strong>, ghi nhận Pageview, Device và Session mà bạn không cần phải tạo dự án thủ công trước!</p>
+  </div>
+
+  <div class="card">
+    <h3 style="margin-bottom:10px;font-size:1.15rem">Thử Nghiệm Gửi Sự Kiện (Custom Events & Error Log)</h3>
+    <p>Bấm vào các nút bên dưới để gửi sự kiện thời gian thực về Dashboard Analytics:</p>
+    
+    <div style="display:flex;flex-wrap:wrap;gap:8px;">
+      <button class="success" onclick="triggerPurchase()">🛒 Mua Hàng (500.000đ)</button>
+      <button onclick="triggerAddToCart()">➕ Thêm Vào Giỏ Hàng</button>
+      <button onclick="triggerLogin()">👤 Đăng Nhập Người Dùng (VIP)</button>
+      <button onclick="triggerFakeNav()">📄 Đổi Trang (SPA Navigation)</button>
+      <button class="danger" onclick="triggerError()">⚠️ Cố Ý Gây Lỗi JS (Error Log)</button>
+    </div>
+
+    <div class="status-box" id="logBox">🟢 Sẵn sàng! Hãy bấm thử các nút trên.</div>
+  </div>
+
+  <div class="card" style="display:flex;justify-content:space-between;align-items:center;">
+    <span>Xem dữ liệu xuất hiện trực tiếp:</span>
+    <a href="/" target="_blank" style="background:#06b6d4;color:#0b1120;padding:8px 16px;border-radius:8px;text-decoration:none;font-weight:bold;display:inline-block">
+      Mở Dashboard Analytics &rarr;
+    </a>
+  </div>
+
+  <script>
+    function log(msg) {
+      document.getElementById('logBox').textContent = '[' + new Date().toLocaleTimeString('vi-VN') + '] ' + msg;
+    }
+
+    function triggerPurchase() {
+      if (window.AIOTracker) {
+        window.AIOTracker.track('purchase_completed', {
+          order_id: 'ORD_' + Math.floor(Math.random() * 90000 + 10000),
+          amount: 500000,
+          currency: 'VND',
+          items_count: 2
+        });
+        log('Đã gửi sự kiện: purchase_completed (500.000đ)');
+      }
+    }
+
+    function triggerAddToCart() {
+      if (window.AIOTracker) {
+        window.AIOTracker.track('add_to_cart', {
+          item_id: 'IPHONE_16',
+          price: 25000000
+        });
+        log('Đã gửi sự kiện: add_to_cart (iPhone 16)');
+      }
+    }
+
+    function triggerLogin() {
+      if (window.AIOTracker) {
+        window.AIOTracker.identify('user_vip_999');
+        window.AIOTracker.track('user_login', { method: 'google_oauth' });
+        log('Đã gửi sự kiện: user_login (User ID = user_vip_999)');
+      }
+    }
+
+    function triggerFakeNav() {
+      const dummyPage = '/san-pham/ao-thun-cotton-' + Math.floor(Math.random() * 100);
+      history.pushState({}, '', dummyPage);
+      log('Đã đổi URL (SPA Navigation) thành: ' + dummyPage + ' -> tracker.js tự động gửi Pageview mới!');
+    }
+
+    function triggerError() {
+      log('Đang kích hoạt một lỗi JavaScript cố ý...');
+      setTimeout(function() {
+        // Cố ý gây lỗi uncaught error để tracker.js bắt tự động
+        window.testUndefinedFunctionCall();
+      }, 50);
+    }
+  </script>
+</body>
+</html>

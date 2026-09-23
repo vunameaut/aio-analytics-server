@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AIO Analytics - Hệ Thống Thống Kê Toàn Diện Đa Nền Tảng</title>
+  <meta name="description" content="Trung tâm thống kê tập trung cho tất cả ứng dụng Web, Mobile App, Desktop và Backend với khả năng tự động nhận diện nền tảng.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/css/dashboard.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
+</head>
+<body>
+
+  <!-- Header & Navigation -->
+  <header class="header-bar">
+    <div class="logo-area">
+      <div class="logo-icon">
+        <svg viewBox="0 0 24 24">
+          <path d="M3 13h2v-2H3v2zm0 4h2v-2H3v2zm0-8h2V7H3v2zm4 4h14v-2H7v2zm0 4h14v-2H7v2zM7 7v2h14V7H7z"/>
+        </svg>
+      </div>
+      <div class="brand-text">
+        <h1>AIO ANALYTICS</h1>
+        <span>Tất Cả Trong Một &bull; Tự Động Phân Loại</span>
+      </div>
+    </div>
+
+    <nav class="nav-tabs" aria-label="Main Navigation">
+      <button class="tab-btn active" data-tab="overview" id="navTabOverview">
+        <span>📊</span> Tổng quan
+      </button>
+      <button class="tab-btn" data-tab="stream" id="navTabStream">
+        <span>⚡</span> Dòng sự kiện Live
+      </button>
+      <button class="tab-btn" data-tab="integration" id="navTabIntegration">
+        <span>🔌</span> Lấy mã nhúng
+      </button>
+    </nav>
+
+    <div class="header-status">
+      <div class="pulse-badge">
+        <div class="pulse-dot" id="liveStatusDot"></div>
+        <span id="liveStatusText">Live System: Trực tuyến</span>
+      </div>
+    </div>
+  </header>
+
+  <main class="container">
+
+    <!-- VIEW 1: OVERVIEW -->
+    <section id="view-overview" style="display:block;">
+      <!-- Hero KPI Cards -->
+      <div class="kpi-grid">
+        <div class="glass-card kpi-card emerald">
+          <div class="kpi-header">
+            <span class="kpi-title">Đang Online (5 phút)</span>
+            <div class="kpi-icon" style="color:#34d399">🟢</div>
+          </div>
+          <div class="kpi-value" id="kpiActiveNow">0</div>
+          <div class="kpi-sub">Người dùng / thiết bị đang tương tác</div>
+        </div>
+
+        <div class="glass-card kpi-card cyan">
+          <div class="kpi-header">
+            <span class="kpi-title">Tổng số Dự án</span>
+            <div class="kpi-icon" style="color:#38bdf8">📂</div>
+          </div>
+          <div class="kpi-value" id="kpiTotalProjects">0</div>
+          <div class="kpi-sub">Đã tự động kết nối và nhận diện</div>
+        </div>
+
+        <div class="glass-card kpi-card blue">
+          <div class="kpi-header">
+            <span class="kpi-title">Sự kiện trong 24h</span>
+            <div class="kpi-icon" style="color:#60a5fa">⚡</div>
+          </div>
+          <div class="kpi-value" id="kpiEvents24h" data-val="0">0</div>
+          <div class="kpi-sub">Pageviews, Screens, Clicks, Actions</div>
+        </div>
+
+        <div class="glass-card kpi-card rose">
+          <div class="kpi-header">
+            <span class="kpi-title">Lỗi & Crash (24h)</span>
+            <div class="kpi-icon" style="color:#fb7185">⚠️</div>
+          </div>
+          <div class="kpi-value" id="kpiErrors24h">0</div>
+          <div class="kpi-sub">JS Errors, Exceptions được báo cáo</div>
+        </div>
+      </div>
+
+      <!-- Platform Distribution Breakdown -->
+      <div style="margin-bottom: 2rem;">
+        <div style="font-size:0.8rem;color:var(--text-dim);margin-bottom:8px;text-transform:uppercase;letter-spacing:0.04em">
+          Nền tảng đã tự động nhận diện:
+        </div>
+        <div id="platformDistributionBadges" style="display:flex;flex-wrap:wrap;gap:8px;">
+          <!-- Dynamically populated -->
+        </div>
+      </div>
+
+      <!-- Projects Section Header -->
+      <div class="section-header">
+        <div class="section-title">
+          <span>Danh sách Dự án</span>
+          <span class="badge" id="projectsCountBadge">0 dự án</span>
+        </div>
+        <div class="section-actions">
+          <input 
+            type="text" 
+            class="search-input" 
+            id="projectSearchInput" 
+            placeholder="Tìm theo tên hoặc ID dự án..." 
+          />
+          <button class="tab-btn" onclick="switchTab('integration')" style="background:rgba(56,189,248,0.15);border:1px solid rgba(56,189,248,0.3);color:#38bdf8">
+            + Nhúng dự án mới
+          </button>
+        </div>
+      </div>
+
+      <!-- Projects Grid -->
+      <div class="projects-grid" id="projectsGrid">
+        <!-- Rendered by dashboard.js -->
+      </div>
+    </section>
+
+    <!-- VIEW 2: PROJECT DETAIL DRILLDOWN -->
+    <section id="view-detail" class="detail-view" style="display:none;">
+      <div class="detail-top-bar">
+        <button class="back-btn" onclick="switchTab('overview')">
+          &larr; Quay lại Tổng quan
+        </button>
+        <div style="display:flex;align-items:center;gap:12px;">
+          <button class="copy-btn" onclick="switchTab('integration')" style="padding:8px 14px">
+            📋 Xem mã nhúng dự án này
+          </button>
+          <button class="copy-btn" onclick="deleteCurrentProject()" style="background:rgba(244,63,94,0.1);border-color:rgba(244,63,94,0.3);color:#fb7185">
+            🗑️ Xóa dự án
+          </button>
+        </div>
+      </div>
+
+      <!-- Project Info Banner -->
+      <div class="glass-card" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:1rem;">
+        <div>
+          <h2 id="detailProjectTitle" style="font-size:1.6rem;font-weight:700;margin-bottom:4px;color:#fff">Tên Dự Án</h2>
+          <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+            <span id="detailProjectId" style="font-family:monospace;color:var(--text-dim);font-size:0.85rem">ID: ...</span>
+            <div id="detailPlatforms" style="display:flex;gap:6px;"></div>
+          </div>
+        </div>
+        <div style="display:flex;gap:2rem;text-align:right;">
+          <div>
+            <div style="font-size:0.75rem;color:var(--text-dim)">ĐANG ONLINE</div>
+            <div id="detailActiveNow" style="font-size:1.6rem;font-weight:700;color:#34d399">0</div>
+          </div>
+          <div>
+            <div style="font-size:0.75rem;color:var(--text-dim)">TỔNG PHIÊN</div>
+            <div id="detailTotalSessions" style="font-size:1.6rem;font-weight:700;color:#38bdf8">0</div>
+          </div>
+          <div>
+            <div style="font-size:0.75rem;color:var(--text-dim)">SỰ KIỆN</div>
+            <div id="detailTotalEvents" style="font-size:1.6rem;font-weight:700;color:#fff">0</div>
+          </div>
+          <div>
+            <div style="font-size:0.75rem;color:var(--text-dim)">LỖI / CRASH</div>
+            <div id="detailTotalErrors" style="font-size:1.6rem;font-weight:700;color:#fb7185">0</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Timeline Chart -->
+      <div class="glass-card chart-card">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;">
+          <h3 style="font-size:1rem;font-weight:600;color:var(--text-muted)">Lưu lượng 7 ngày gần nhất</h3>
+        </div>
+        <div style="height:260px;position:relative;">
+          <canvas id="timelineChart"></canvas>
+        </div>
+      </div>
+
+      <!-- Top Pages & Breakdown -->
+      <div class="stats-two-col">
+        <!-- Top Pages -->
+        <div class="glass-card">
+          <h3 style="font-size:1rem;font-weight:600;margin-bottom:1rem;color:var(--text-muted)">
+            Top Trang / Màn hình (Screen Views)
+          </h3>
+          <div class="data-table-wrapper">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Đường dẫn / Màn hình</th>
+                  <th>Tỉ lệ</th>
+                  <th style="text-align:right">Lượt xem</th>
+                </tr>
+              </thead>
+              <tbody id="topPagesList">
+                <!-- Rendered dynamically -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Devices, OS, Browsers Breakdown -->
+        <div class="glass-card" style="display:flex;flex-direction:column;gap:1.5rem;">
+          <div>
+            <h3 style="font-size:1rem;font-weight:600;margin-bottom:0.75rem;color:var(--text-muted)">Thiết bị (Devices)</h3>
+            <table class="data-table">
+              <tbody id="devicesList"></tbody>
+            </table>
+          </div>
+          <div>
+            <h3 style="font-size:1rem;font-weight:600;margin-bottom:0.75rem;color:var(--text-muted)">Hệ điều hành (OS)</h3>
+            <table class="data-table">
+              <tbody id="osList"></tbody>
+            </table>
+          </div>
+          <div>
+            <h3 style="font-size:1rem;font-weight:600;margin-bottom:0.75rem;color:var(--text-muted)">Trình duyệt / Engine</h3>
+            <table class="data-table">
+              <tbody id="browsersList"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- Recent Events Stream -->
+      <div class="glass-card">
+        <h3 style="font-size:1rem;font-weight:600;margin-bottom:1rem;color:var(--text-muted)">
+          Các sự kiện gần đây (Recent Events Log)
+        </h3>
+        <div class="data-table-wrapper" style="max-height:360px;overflow-y:auto">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Thời gian</th>
+                <th>Loại</th>
+                <th>Tên sự kiện</th>
+                <th>Chi tiết / Đường dẫn</th>
+              </tr>
+            </thead>
+            <tbody id="recentEventsList"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Error & Crash Logs -->
+      <div class="glass-card">
+        <h3 style="font-size:1rem;font-weight:600;margin-bottom:1rem;color:#fb7185;display:flex;align-items:center;gap:8px;">
+          <span>⚠️</span> Báo cáo Lỗi & Crash (Error Logs)
+        </h3>
+        <div id="recentErrorsList"></div>
+      </div>
+    </section>
+
+    <!-- VIEW 3: LIVE STREAM FEED -->
+    <section id="view-stream" style="display:none;">
+      <div class="glass-card">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.25rem;">
+          <div>
+            <h2 style="font-size:1.3rem;font-weight:700;color:#fff;margin-bottom:4px;">Dòng Sự Kiện Thời Gian Thực (Live Stream)</h2>
+            <p style="color:var(--text-dim);font-size:0.85rem">Mọi hành động từ tất cả các app và website sẽ lập tức xuất hiện tại đây khi người dùng tương tác.</p>
+          </div>
+          <div class="pulse-badge">
+            <div class="pulse-dot"></div>
+            <span>Đang lắng nghe SSE...</span>
+          </div>
+        </div>
+
+        <div class="stream-container" id="liveStreamFeed">
+          <div class="empty-state">
+            <p>Đang chờ sự kiện đầu tiên...</p>
+            <span style="font-size:0.8rem">Hãy mở một ứng dụng có nhúng mã hoặc dùng nút thử nghiệm bên dưới.</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- VIEW 4: INTEGRATION HUB -->
+    <section id="view-integration" style="display:none;">
+      <div class="glass-card" style="margin-bottom:1.5rem;">
+        <h2 style="font-size:1.4rem;font-weight:700;color:#fff;margin-bottom:6px;">Trung Tâm Nhúng Mã (Integration Hub)</h2>
+        <p style="color:var(--text-muted);font-size:0.9rem">
+          Chỉ cần nhúng đoạn mã tương ứng vào dự án của bạn. Server sẽ <strong>tự động nhận diện nền tảng</strong> (Web, Mobile iOS/Android, Desktop, API) và <strong>tự động tạo dự án mới</strong> trên dashboard!
+        </p>
+
+        <!-- Project ID Selector input -->
+        <div style="margin-top:1.25rem;display:flex;align-items:center;gap:12px;background:rgba(0,0,0,0.25);padding:12px 16px;border-radius:var(--radius-md);border:1px solid var(--border-color);max-width:550px;">
+          <label for="snippetProjectIdInput" style="font-weight:600;font-size:0.85rem;color:var(--accent-cyan);white-space:nowrap;">
+            Tên định danh dự án (Project ID):
+          </label>
+          <input 
+            type="text" 
+            id="snippetProjectIdInput" 
+            class="search-input" 
+            value="my-awesome-app" 
+            placeholder="vd: shop-quan-ao, travel-app-flutter..." 
+            style="flex:1"
+          />
+        </div>
+      </div>
+
+      <div class="integration-grid">
+        <!-- Platform Selector Side -->
+        <div class="platform-nav">
+          <button class="platform-nav-btn active" data-platform="web">
+            <span style="font-size:1.2rem">🌐</span>
+            <div>
+              <div>Website (HTML / Script)</div>
+              <small style="color:var(--text-dim);font-size:0.75rem">1 dòng nhúng duy nhất</small>
+            </div>
+          </button>
+
+          <button class="platform-nav-btn" data-platform="react">
+            <span style="font-size:1.2rem">⚛️</span>
+            <div>
+              <div>React / Next.js / Vue</div>
+              <small style="color:var(--text-dim);font-size:0.75rem">Tự động bắt SPA route</small>
+            </div>
+          </button>
+
+          <button class="platform-nav-btn" data-platform="flutter">
+            <span style="font-size:1.2rem">💙</span>
+            <div>
+              <div>Flutter (Android & iOS)</div>
+              <small style="color:var(--text-dim);font-size:0.75rem">Dart helper class</small>
+            </div>
+          </button>
+
+          <button class="platform-nav-btn" data-platform="react_native">
+            <span style="font-size:1.2rem">📱</span>
+            <div>
+              <div>React Native</div>
+              <small style="color:var(--text-dim);font-size:0.75rem">Mobile App tracking</small>
+            </div>
+          </button>
+
+          <button class="platform-nav-btn" data-platform="python">
+            <span style="font-size:1.2rem">🐍</span>
+            <div>
+              <div>Python / Backend API</div>
+              <small style="color:var(--text-dim);font-size:0.75rem">FastAPI, Flask, CLI</small>
+            </div>
+          </button>
+
+          <button class="platform-nav-btn" data-platform="curl">
+            <span style="font-size:1.2rem">⚡</span>
+            <div>
+              <div>cURL / REST API</div>
+              <small style="color:var(--text-dim);font-size:0.75rem">Bắn test trực tiếp</small>
+            </div>
+          </button>
+        </div>
+
+        <!-- Code Snippet Display Side -->
+        <div class="glass-card" style="padding:0;overflow:hidden;">
+          <div class="code-box-header">
+            <span class="code-box-title">ĐOẠN MÃ SẴN SÀNG SAO CHÉP</span>
+            <button class="copy-btn" id="copySnippetBtn" onclick="copyCodeSnippet()">
+              📋 Sao chép mã
+            </button>
+          </div>
+          <pre class="code-pre"><code id="snippetCodePre"></code></pre>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <script src="/js/snippets.js"></script>
+  <script src="/js/dashboard.js"></script>
+</body>
+</html>

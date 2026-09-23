@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Trang Web Demo Thử Nghiệm Tracker</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #0f172a;
+      color: #f8fafc;
+      padding: 2rem;
+      max-width: 800px;
+      margin: 0 auto;
+      line-height: 1.6;
+    }
+    .card {
+      background: #1e293b;
+      border: 1px solid #334155;
+      padding: 1.5rem;
+      border-radius: 12px;
+      margin-bottom: 1.5rem;
+    }
+    h1 { color: #38bdf8; margin-bottom: 0.5rem; }
+    button {
+      background: #3b82f6;
+      color: #fff;
+      border: none;
+      padding: 10px 18px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-weight: 600;
+      margin-right: 8px;
+      margin-bottom: 8px;
+      transition: 0.2s;
+    }
+    button:hover { background: #2563eb; }
+    button.danger { background: #ef4444; }
+    button.danger:hover { background: #dc2626; }
+    button.success { background: #10b981; }
+    button.success:hover { background: #059669; }
+    .status-box {
+      background: #0a0f1d;
+      padding: 12px;
+      border-radius: 6px;
+      font-family: monospace;
+      font-size: 0.85rem;
+      color: #34d399;
+      margin-top: 1rem;
+    }
+  </style>
+
+  <!-- ĐOẠN MÃ NHÚNG DUY NHẤT: -->
+  <script src="/tracker.js" data-project="my-demo-web-store" async></script>
+</head>
+<body>
+
+  <div class="card">
+    <h1>🌐 Cửa Hàng Demo (Web App)</h1>
+    <p>Trang web này đang được nhúng mã <code>&lt;script src="/tracker.js" data-project="my-demo-web-store"&gt;</code>.</p>
+    <p>Ngay khi bạn mở trang này, server thống kê đã <strong>tự động nhận diện đây là Web App</strong>, ghi nhận lượt xem trang (pageview) và tạo session!</p>
+  </div>
+
+  <div class="card">
+    <h3>Thử Nghiệm Bắn Sự Kiện (Custom Events)</h3>
+    <p>Bấm các nút dưới đây để gửi các hành động người dùng về Server Analytics:</p>
+    <button class="success" onclick="triggerPurchase()">🛒 Mua Hàng (500.000đ)</button>
+    <button onclick="triggerAddToCart()">➕ Thêm Vào Giỏ Hàng</button>
+    <button onclick="triggerLogin()">👤 Đăng Nhập Người Dùng</button>
+    <button onclick="triggerFakeNav()">📄 Đổi Trang (SPA Navigation)</button>
+    <button class="danger" onclick="triggerError()">⚠️ Thử Báo Lỗi JS (Error Log)</button>
+
+    <div class="status-box" id="logBox">Sẵn sàng thử nghiệm...</div>
+  </div>
+
+  <div class="card">
+    <a href="/" target="_blank" style="color:#38bdf8;text-decoration:none;font-weight:bold;">
+      &rarr; Bấm vào đây để mở Dashboard Xem Kết Quả Ngay Lập Tức
+    </a>
+  </div>
+
+  <script>
+    function log(msg) {
+      document.getElementById('logBox').textContent = '[' + new Date().toLocaleTimeString() + '] ' + msg;
+    }
+
+    function triggerPurchase() {
+      if (window.AIOTracker) {
+        window.AIOTracker.track('purchase_completed', {
+          order_id: 'ORD_' + Math.floor(Math.random() * 90000 + 10000),
+          amount: 500000,
+          currency: 'VND',
+          items_count: 2
+        });
+        log('Đã gửi sự kiện: purchase_completed (500.000đ)');
+      }
+    }
+
+    function triggerAddToCart() {
+      if (window.AIOTracker) {
+        window.AIOTracker.track('add_to_cart', {
+          item_id: 'IPHONE_16',
+          price: 25000000
+        });
+        log('Đã gửi sự kiện: add_to_cart (iPhone 16)');
+      }
+    }
+
+    function triggerLogin() {
+      if (window.AIOTracker) {
+        window.AIOTracker.identify('user_vip_999');
+        window.AIOTracker.track('user_login', { method: 'google_oauth' });
+        log('Đã gửi sự kiện: user_login với User ID = user_vip_999');
+      }
+    }
+
+    function triggerFakeNav() {
+      history.pushState({}, '', '/san-pham/ao-so-mi-' + Math.floor(Math.random() * 100));
+      log('Đã đổi URL (SPA Navigation) -> tracker.js tự động gửi Pageview mới!');
+    }
+
+    function triggerError() {
+      log('Đang cố ý kích hoạt lỗi JavaScript...');
+      // Cố ý gây lỗi uncaught error để tracker.js bắt tự động
+      setTimeout(function() {
+        nonExistentFunctionCall();
+      }, 50);
+    }
+  </script>
+</body>
+</html>
