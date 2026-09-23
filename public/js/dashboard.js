@@ -59,6 +59,14 @@ document.addEventListener('DOMContentLoaded', () => {
   loadOverview();
   loadProjects();
   initRealtimeSSE();
+
+  // Tự động đồng bộ số liệu mới mỗi 8 giây (đảm bảo hoạt động trên môi trường Edge / Serverless)
+  setInterval(() => {
+    if (AppState.currentTab === 'overview') {
+      loadOverview();
+      loadProjects();
+    }
+  }, 8000);
 });
 
 // Real-time Server-Sent Events (SSE)
