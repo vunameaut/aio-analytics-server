@@ -1,6 +1,6 @@
 const { createClient } = require('@supabase/supabase-js');
+const { getTimeRange } = require('./timeHelper');
 
-// Hỗ trợ linh hoạt mọi tên biến môi trường mà người dùng / nền tảng có thể đặt
 const supabaseUrl = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || '';
 const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || 
                     process.env.SUPABASE_SERVICE_KEY || 
@@ -28,33 +28,40 @@ if (supabaseUrl && supabaseKey) {
   console.log('[Database] ℹ️ Chưa có SUPABASE_URL & SUPABASE_KEY. Đang dùng local fallback store.');
 }
 
+function applyRange(query, col, startDate, endDate) {
+  let q = query;
+  if (startDate) q = q.gte(col, startDate);
+  if (endDate) q = q.lte(col, endDate);
+  return q;
+}
+
 module.exports = {
   supabase,
   isConfigured: () => isConfigured,
   getEngineName: () => (isConfigured ? 'supabase' : null),
 
-  // 1. Overview
-  async getOverview() {
+  // 1. Overview có hỗ trợ lọc theo khung thời gian (Hôm nay, Hôm qua, 7 ngày, 30 ngày, Toàn thời gian)
+  async getOverview(period = '7d') {
     if (!isConfigured) return null;
+    const { startDate, endDate, label, isHourly } = getTimeRange(period);
     const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000).toISOString();
-    const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
 
     const [
       { count: activeNow },
       { count: totalProjects },
       { count: totalVisitors },
-      { count: events24h },
-      { count: errors24h },
+      { count: eventsCount },
+      { count: errorsCount },
       { data: durationRows },
       { data: platformRows }
     ] = await Promise.all([
       supabase.from('sessions').select('*', { count: 'exact', head: true }).gte('last_active_at', fiveMinutesAgo),
       supabase.from('projects').select('*', { count: 'exact', head: true }),
-      supabase.from('sessions').select('*', { count: 'exact', head: true }),
-      supabase.from('events').select('*', { count: 'exact', head: true }).gte('created_at', twentyFourHoursAgo),
-      supabase.from('errors').select('*', { count: 'exact', head: true }).gte('created_at', twentyFourHoursAgo),
-      supabase.from('sessions').select('duration_seconds').gt('duration_seconds', 0).limit(2000),
-      supabase.from('sessions').select('platform').gte('started_at', twentyFourHoursAgo).limit(5000)
+      applyRange(supabase.from('sessions').select('*', { count: 'exact', head: true }), 'started_at', startDate, endDate),
+      applyRange(supabase.from('events').select('*', { count: 'exact', head: true }), 'created_at', startDate, endDate),
+      applyRange(supabase.from('errors').select('*', { count: 'exact', head: true }), 'created_at', startDate, endDate),
+      applyRange(supabase.from('sessions').select('duration_seconds').gt('duration_seconds', 0), 'started_at', startDate, endDate).limit(2000),
+      applyRange(supabase.from('sessions').select('platform'), 'started_at', startDate, endDate).limit(5000)
     ]);
 
     const avgDuration = durationRows && durationRows.length
@@ -76,9 +83,11 @@ module.exports = {
       totalProjects: totalProjects || 0,
       totalVisitors: totalVisitors || 0,
       avgDuration,
-      events24h: events24h || 0,
-      errors24h: errors24h || 0,
+      events24h: eventsCount || 0,
+      errors24h: errorsCount || 0,
       platformsDistribution,
+      period,
+      periodLabel: label,
       engine: 'supabase'
     };
   },
@@ -124,18 +133,20 @@ module.exports = {
     });
   },
 
-  // 3. Chi tiết dự án
-  async getProjectDetail(id) {
+  // 3. Chi tiết dự án có lọc theo khung thời gian
+  async getProjectDetail(id, period = '7d') {
     if (!isConfigured) return null;
+    const { startDate, endDate, label, isHourly } = getTimeRange(period);
     const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000).toISOString();
-    const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
 
     const { data: project } = await supabase.from('projects').select('*').eq('id', id).maybeSingle();
     if (!project) return null;
 
     const [
       { count: activeNow },
-      { count: totalVisitors },
+      { count: periodVisitors },
+      { count: periodEvents },
+      { count: periodErrors },
       { data: durationRows },
       { data: timelineEvents },
       { data: pageEvents },
@@ -145,28 +156,38 @@ module.exports = {
       { data: recentErrors }
     ] = await Promise.all([
       supabase.from('sessions').select('*', { count: 'exact', head: true }).eq('project_id', id).gte('last_active_at', fiveMinutesAgo),
-      supabase.from('sessions').select('*', { count: 'exact', head: true }).eq('project_id', id),
-      supabase.from('sessions').select('duration_seconds').eq('project_id', id).gt('duration_seconds', 0),
-      supabase.from('events').select('created_at, session_id').eq('project_id', id).gte('created_at', sevenDaysAgo).limit(10000),
-      supabase.from('events').select('path_or_screen').eq('project_id', id).in('event_type', ['pageview', 'screen_view']).limit(5000),
-      supabase.from('events').select('event_name').eq('project_id', id).in('event_type', ['click', 'action', 'custom']).limit(5000),
-      supabase.from('sessions').select('device_type, os_name, browser_name').eq('project_id', id).limit(5000),
-      supabase.from('events').select('*').eq('project_id', id).order('created_at', { ascending: false }).limit(40),
-      supabase.from('errors').select('*').eq('project_id', id).order('created_at', { ascending: false }).limit(20)
+      applyRange(supabase.from('sessions').select('*', { count: 'exact', head: true }).eq('project_id', id), 'started_at', startDate, endDate),
+      applyRange(supabase.from('events').select('*', { count: 'exact', head: true }).eq('project_id', id), 'created_at', startDate, endDate),
+      applyRange(supabase.from('errors').select('*', { count: 'exact', head: true }).eq('project_id', id), 'created_at', startDate, endDate),
+      applyRange(supabase.from('sessions').select('duration_seconds').eq('project_id', id).gt('duration_seconds', 0), 'started_at', startDate, endDate),
+      applyRange(supabase.from('events').select('created_at, session_id').eq('project_id', id), 'created_at', startDate, endDate).limit(10000),
+      applyRange(supabase.from('events').select('path_or_screen').eq('project_id', id).in('event_type', ['pageview', 'screen_view']), 'created_at', startDate, endDate).limit(5000),
+      applyRange(supabase.from('events').select('event_name').eq('project_id', id).in('event_type', ['click', 'action', 'custom']), 'created_at', startDate, endDate).limit(5000),
+      applyRange(supabase.from('sessions').select('device_type, os_name, browser_name').eq('project_id', id), 'started_at', startDate, endDate).limit(5000),
+      applyRange(supabase.from('events').select('*').eq('project_id', id), 'created_at', startDate, endDate).order('created_at', { ascending: false }).limit(40),
+      applyRange(supabase.from('errors').select('*').eq('project_id', id), 'created_at', startDate, endDate).order('created_at', { ascending: false }).limit(20)
     ]);
 
     const avgDuration = durationRows && durationRows.length
-      ? Math.round(durationRows.reduce((a, b) => a + (b.duration_seconds || 0), 0) / durationRows.length)
+      ? Math.round(durationRows.reduce((sum, r) => sum + (r.duration_seconds || 0), 0) / durationRows.length)
       : 0;
 
-    // Timeline 7 ngày
+    // Timeline phân bổ theo Giờ (nếu xem hôm nay/hôm qua) hoặc theo Ngày (nếu xem 7d/30d)
     const dateMap = {};
     (timelineEvents || []).forEach(e => {
-      const d = String(e.created_at).substring(0, 10);
-      if (!dateMap[d]) dateMap[d] = { date: d, count: 0, visitorsSet: new Set() };
-      dateMap[d].count++;
-      if (e.session_id) dateMap[d].visitorsSet.add(e.session_id);
+      let key = '';
+      if (isHourly) {
+        // Lấy giờ trong ngày (vd: 14:00)
+        key = String(e.created_at).substring(11, 13) + ':00';
+      } else {
+        // Lấy ngày (vd: 2026-09-23)
+        key = String(e.created_at).substring(0, 10);
+      }
+      if (!dateMap[key]) dateMap[key] = { date: key, count: 0, visitorsSet: new Set() };
+      dateMap[key].count++;
+      if (e.session_id) dateMap[key].visitorsSet.add(e.session_id);
     });
+
     const timeline = Object.values(dateMap)
       .map(v => ({ date: v.date, count: v.count, visitors: v.visitorsSet.size }))
       .sort((a, b) => a.date.localeCompare(b.date));
@@ -219,7 +240,9 @@ module.exports = {
         ...project,
         platforms_seen: platformsSeen,
         active_now: activeNow || 0,
-        total_visitors: totalVisitors || 0,
+        total_visitors: periodVisitors || 0,
+        total_events: periodEvents || 0,
+        total_errors: periodErrors || 0,
         avg_duration: avgDuration
       },
       timeline,
@@ -229,7 +252,10 @@ module.exports = {
       operatingSystems,
       browsers,
       recentEvents: recentEvents || [],
-      recentErrors: recentErrors || []
+      recentErrors: recentErrors || [],
+      period,
+      periodLabel: label,
+      isHourly
     };
   },
 
@@ -252,7 +278,6 @@ module.exports = {
     const projectName = payload.projectName || payload.appName || projectId;
     const isErrorEvent = payload.eventType === 'error' || Boolean(payload.error);
 
-    // Kiểm tra & cập nhật dự án
     const { data: project } = await supabase.from('projects').select('*').eq('id', projectId).maybeSingle();
 
     if (!project) {
@@ -282,7 +307,6 @@ module.exports = {
       }).eq('id', projectId);
     }
 
-    // Quản lý Phiên làm việc (Session)
     const { v4: uuidv4 } = require('uuid');
     const sessionId = payload.sessionId || payload.session_id || uuidv4();
     const { data: existingSession } = await supabase.from('sessions').select('*').eq('session_id', sessionId).maybeSingle();
@@ -321,7 +345,6 @@ module.exports = {
       }).eq('session_id', sessionId);
     }
 
-    // Ghi nhận sự kiện (Event)
     const eventType = payload.eventType || payload.event_type || 'pageview';
     const eventName = payload.eventName || payload.event_name || (eventType === 'pageview' ? 'Page View' : eventType);
     const pathOrScreen = payload.path || payload.screen || payload.url || '/';
@@ -339,7 +362,6 @@ module.exports = {
       created_at: now
     });
 
-    // Ghi nhận Lỗi nếu có
     if (isErrorEvent) {
       const errorData = payload.error || {};
       await supabase.from('errors').insert({

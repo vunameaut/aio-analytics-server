@@ -2,6 +2,7 @@ const supabaseStore = require('./supabase');
 const localDb = require('./db');
 const { detectClientEnvironment } = require('./detector');
 const eventHub = require('./eventHub');
+const { getTimeRange } = require('./timeHelper');
 const { v4: uuidv4 } = require('uuid');
 
 // Prepared statements for local fallback
@@ -53,18 +54,19 @@ const stmtInsertError = localDb.prepare(`
 module.exports = {
   isSupabase: () => supabaseStore.isConfigured(),
   
-  async getOverview() {
+  async getOverview(period = '7d') {
     if (supabaseStore.isConfigured()) {
       try {
-        const res = await supabaseStore.getOverview();
+        const res = await supabaseStore.getOverview(period);
         if (res) return res;
       } catch (err) {
         console.warn('[DataStore] Supabase getOverview error, falling back to local:', err.message);
       }
     }
-    // Local fallback
+
+    // Local fallback hỗ trợ khoảng thời gian
+    const { startDate, endDate, label } = getTimeRange(period);
     const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000).toISOString();
-    const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
 
     const activeNowRow = localDb.prepare(`
       SELECT COUNT(DISTINCT session_id) as count 
@@ -73,40 +75,56 @@ module.exports = {
     `).get(fiveMinutesAgo);
 
     const totalProjectsRow = localDb.prepare(`SELECT COUNT(*) as count FROM projects`).get();
-    const totalVisitorsRow = localDb.prepare(`SELECT COUNT(DISTINCT session_id) as count FROM sessions`).get();
-    const avgDurationRow = localDb.prepare(`
-      SELECT AVG(duration_seconds) as avg_duration 
-      FROM sessions 
-      WHERE duration_seconds > 0
-    `).get();
 
-    const events24hRow = localDb.prepare(`
-      SELECT COUNT(*) as count 
-      FROM events 
-      WHERE created_at >= ?
-    `).get(twentyFourHoursAgo);
+    // Query các bản ghi theo khoảng thời gian
+    let timeWhereEvents = '';
+    let timeWhereSessions = '';
+    let timeWhereErrors = '';
+    let paramsEvents = [];
+    let paramsSessions = [];
+    let paramsErrors = [];
 
-    const errors24hRow = localDb.prepare(`
-      SELECT COUNT(*) as count 
-      FROM errors 
-      WHERE created_at >= ?
-    `).get(twentyFourHoursAgo);
+    if (startDate && endDate) {
+      timeWhereEvents = 'WHERE created_at >= ? AND created_at <= ?';
+      timeWhereSessions = 'WHERE started_at >= ? AND started_at <= ?';
+      timeWhereErrors = 'WHERE created_at >= ? AND created_at <= ?';
+      paramsEvents = [startDate, endDate];
+      paramsSessions = [startDate, endDate];
+      paramsErrors = [startDate, endDate];
+    } else if (startDate) {
+      timeWhereEvents = 'WHERE created_at >= ?';
+      timeWhereSessions = 'WHERE started_at >= ?';
+      timeWhereErrors = 'WHERE created_at >= ?';
+      paramsEvents = [startDate];
+      paramsSessions = [startDate];
+      paramsErrors = [startDate];
+    }
 
+    const eventsCountRow = localDb.prepare(`SELECT COUNT(*) as count FROM events ${timeWhereEvents}`).get(...paramsEvents);
+    const errorsCountRow = localDb.prepare(`SELECT COUNT(*) as count FROM errors ${timeWhereErrors}`).get(...paramsErrors);
+    const totalVisitorsRow = localDb.prepare(`SELECT COUNT(DISTINCT session_id) as count FROM sessions ${timeWhereSessions}`).get(...paramsSessions);
+    
+    const durWhere = timeWhereSessions ? `${timeWhereSessions} AND duration_seconds > 0` : 'WHERE duration_seconds > 0';
+    const avgDurationRow = localDb.prepare(`SELECT AVG(duration_seconds) as avg_duration FROM sessions ${durWhere}`).get(...paramsSessions);
+
+    const platWhere = timeWhereSessions ? `${timeWhereSessions}` : '';
     const platformsDistribution = localDb.prepare(`
       SELECT platform, COUNT(DISTINCT session_id) as sessions_count
       FROM sessions
-      WHERE started_at >= ?
+      ${platWhere}
       GROUP BY platform
-    `).all(twentyFourHoursAgo);
+    `).all(...paramsSessions);
 
     return {
       activeNow: activeNowRow?.count || 0,
       totalProjects: totalProjectsRow?.count || 0,
       totalVisitors: totalVisitorsRow?.count || 0,
       avgDuration: Math.round(avgDurationRow?.avg_duration || 0),
-      events24h: events24hRow?.count || 0,
-      errors24h: errors24hRow?.count || 0,
+      events24h: eventsCountRow?.count || 0,
+      errors24h: errorsCountRow?.count || 0,
       platformsDistribution,
+      period,
+      periodLabel: label,
       engine: 'local'
     };
   },
@@ -157,21 +175,22 @@ module.exports = {
     });
   },
 
-  async getProjectDetail(id) {
+  async getProjectDetail(id, period = '7d') {
     if (supabaseStore.isConfigured()) {
       try {
-        const res = await supabaseStore.getProjectDetail(id);
+        const res = await supabaseStore.getProjectDetail(id, period);
         if (res) return res;
       } catch (err) {
         console.warn('[DataStore] Supabase getProjectDetail error, falling back to local:', err.message);
       }
     }
+
     // Local fallback
     const project = localDb.prepare('SELECT * FROM projects WHERE id = ?').get(id);
     if (!project) return null;
 
+    const { startDate, endDate, label, isHourly } = getTimeRange(period);
     const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000).toISOString();
-    const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
 
     const activeNow = localDb.prepare(`
       SELECT COUNT(DISTINCT session_id) as count 
@@ -179,85 +198,116 @@ module.exports = {
       WHERE project_id = ? AND last_active_at >= ?
     `).get(id, fiveMinutesAgo)?.count || 0;
 
+    let timeEventClause = 'WHERE project_id = ?';
+    let timeSessionClause = 'WHERE project_id = ?';
+    let pEvent = [id];
+    let pSession = [id];
+
+    if (startDate && endDate) {
+      timeEventClause += ' AND created_at >= ? AND created_at <= ?';
+      timeSessionClause += ' AND started_at >= ? AND started_at <= ?';
+      pEvent.push(startDate, endDate);
+      pSession.push(startDate, endDate);
+    } else if (startDate) {
+      timeEventClause += ' AND created_at >= ?';
+      timeSessionClause += ' AND started_at >= ?';
+      pEvent.push(startDate);
+      pSession.push(startDate);
+    }
+
     const totalVisitors = localDb.prepare(`
       SELECT COUNT(DISTINCT session_id) as count 
       FROM sessions 
-      WHERE project_id = ?
-    `).get(id)?.count || 0;
+      ${timeSessionClause}
+    `).get(...pSession)?.count || 0;
+
+    const totalEvents = localDb.prepare(`
+      SELECT COUNT(*) as count 
+      FROM events 
+      ${timeEventClause}
+    `).get(...pEvent)?.count || 0;
+
+    const totalErrors = localDb.prepare(`
+      SELECT COUNT(*) as count 
+      FROM errors 
+      ${timeEventClause}
+    `).get(...pEvent)?.count || 0;
 
     const avgDuration = localDb.prepare(`
       SELECT AVG(duration_seconds) as avg_duration 
       FROM sessions 
-      WHERE project_id = ? AND duration_seconds > 0
-    `).get(id)?.avg_duration || 0;
+      ${timeSessionClause} AND duration_seconds > 0
+    `).get(...pSession)?.avg_duration || 0;
 
+    // Timeline: nếu isHourly thì group theo giờ, nếu không thì theo ngày
+    const timeGroupBy = isHourly ? "substr(created_at, 12, 2) || ':00'" : "substr(created_at, 1, 10)";
     const timeline = localDb.prepare(`
-      SELECT substr(created_at, 1, 10) as date, COUNT(*) as count, COUNT(DISTINCT session_id) as visitors
+      SELECT ${timeGroupBy} as date, COUNT(*) as count, COUNT(DISTINCT session_id) as visitors
       FROM events
-      WHERE project_id = ? AND created_at >= ?
-      GROUP BY substr(created_at, 1, 10)
+      ${timeEventClause}
+      GROUP BY ${timeGroupBy}
       ORDER BY date ASC
-    `).all(id, sevenDaysAgo);
+    `).all(...pEvent);
 
     const topPages = localDb.prepare(`
       SELECT path_or_screen, COUNT(*) as views
       FROM events
-      WHERE project_id = ? AND event_type IN ('pageview', 'screen_view')
+      ${timeEventClause} AND event_type IN ('pageview', 'screen_view')
       GROUP BY path_or_screen
       ORDER BY views DESC
       LIMIT 10
-    `).all(id);
+    `).all(...pEvent);
 
     const topClicks = localDb.prepare(`
       SELECT event_name, COUNT(*) as count 
       FROM events 
-      WHERE project_id = ? AND event_type IN ('click', 'action', 'custom') 
+      ${timeEventClause} AND event_type IN ('click', 'action', 'custom') 
       GROUP BY event_name 
       ORDER BY count DESC 
       LIMIT 10
-    `).all(id);
+    `).all(...pEvent);
 
     const devices = localDb.prepare(`
       SELECT device_type, COUNT(*) as count
       FROM sessions
-      WHERE project_id = ?
+      ${timeSessionClause}
       GROUP BY device_type
       ORDER BY count DESC
-    `).all(id);
+    `).all(...pSession);
 
     const operatingSystems = localDb.prepare(`
       SELECT os_name, COUNT(*) as count
       FROM sessions
-      WHERE project_id = ?
+      ${timeSessionClause}
       GROUP BY os_name
       ORDER BY count DESC
       LIMIT 6
-    `).all(id);
+    `).all(...pSession);
 
     const browsers = localDb.prepare(`
       SELECT browser_name, COUNT(*) as count
       FROM sessions
-      WHERE project_id = ?
+      ${timeSessionClause}
       GROUP BY browser_name
       ORDER BY count DESC
       LIMIT 6
-    `).all(id);
+    `).all(...pSession);
 
     const recentEvents = localDb.prepare(`
       SELECT *
       FROM events
-      WHERE project_id = ?
+      ${timeEventClause}
       ORDER BY created_at DESC
       LIMIT 40
-    `).all(id);
+    `).all(...pEvent);
 
     const recentErrors = localDb.prepare(`
       SELECT *
       FROM errors
-      WHERE project_id = ?
+      ${timeEventClause}
       ORDER BY created_at DESC
       LIMIT 20
-    `).all(id);
+    `).all(...pEvent);
 
     let platformsSeen = [];
     try {
@@ -272,6 +322,8 @@ module.exports = {
         platforms_seen: platformsSeen,
         active_now: activeNow,
         total_visitors: totalVisitors,
+        total_events: totalEvents,
+        total_errors: totalErrors,
         avg_duration: Math.round(avgDuration)
       },
       timeline,
@@ -281,7 +333,10 @@ module.exports = {
       operatingSystems,
       browsers,
       recentEvents,
-      recentErrors
+      recentErrors,
+      period,
+      periodLabel: label,
+      isHourly
     };
   },
 

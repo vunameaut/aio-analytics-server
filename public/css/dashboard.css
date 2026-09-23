@@ -158,6 +158,42 @@ body {
   box-shadow: 0 0 12px rgba(6, 182, 212, 0.15);
 }
 
+/* Time range filter buttons */
+.time-filter-group {
+  display: flex;
+  background: rgba(255, 255, 255, 0.04);
+  padding: 4px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-color);
+  gap: 4px;
+}
+
+.time-filter-btn {
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--text-muted);
+  font-family: inherit;
+  font-size: 0.8rem;
+  font-weight: 500;
+  padding: 6px 14px;
+  border-radius: 7px;
+  cursor: pointer;
+  transition: var(--transition-fast);
+}
+
+.time-filter-btn:hover {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.time-filter-btn.active {
+  color: #fff;
+  background: linear-gradient(135deg, #06b6d4 0%, #3b82f6 100%);
+  font-weight: 600;
+  box-shadow: 0 0 14px rgba(6, 182, 212, 0.4);
+  border-color: rgba(56, 189, 248, 0.5);
+}
+
 .header-status {
   display: flex;
   align-items: center;

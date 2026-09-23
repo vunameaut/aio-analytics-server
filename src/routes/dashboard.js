@@ -13,11 +13,12 @@ router.get('/realtime', (req, res) => {
 
 /**
  * GET /api/v1/dashboard/overview
- * Thống kê tổng quan toàn bộ hệ thống (Hỗ trợ Supabase Cloud & Local)
+ * Thống kê tổng quan toàn bộ hệ thống (Hỗ trợ period: today | yesterday | 7d | 30d | all)
  */
 router.get('/overview', async (req, res) => {
   try {
-    const overview = await dataStore.getOverview();
+    const period = req.query.period || '7d';
+    const overview = await dataStore.getOverview(period);
     return res.json(overview);
   } catch (err) {
     console.error('[Dashboard Overview Error]:', err);
@@ -41,12 +42,13 @@ router.get('/projects', async (req, res) => {
 
 /**
  * GET /api/v1/dashboard/projects/:id
- * Chi tiết thống kê của 1 dự án cụ thể
+ * Chi tiết thống kê của 1 dự án cụ thể (Hỗ trợ period: today | yesterday | 7d | 30d | all)
  */
 router.get('/projects/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    const detail = await dataStore.getProjectDetail(id);
+    const period = req.query.period || '7d';
+    const detail = await dataStore.getProjectDetail(id, period);
     if (!detail) {
       return res.status(404).json({ error: 'Project not found' });
     }

@@ -54,6 +54,20 @@
 
     <!-- VIEW 1: OVERVIEW -->
     <section id="view-overview" style="display:block;">
+      <!-- Time Range Filter Bar -->
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.5rem;flex-wrap:wrap;gap:12px;background:rgba(255,255,255,0.02);padding:10px 16px;border-radius:var(--radius-md);border:1px solid var(--border-color);">
+        <div style="font-size:0.9rem;font-weight:600;color:var(--text-muted);display:flex;align-items:center;gap:8px;">
+          <span>📅</span> Xem thống kê: <span id="overviewPeriodLabel" style="color:var(--accent-cyan);font-weight:700">7 ngày qua</span>
+        </div>
+        <div class="time-filter-group" id="overviewTimeFilters">
+          <button class="time-filter-btn" data-period="today">Hôm nay</button>
+          <button class="time-filter-btn" data-period="yesterday">Hôm qua</button>
+          <button class="time-filter-btn active" data-period="7d">7 ngày qua</button>
+          <button class="time-filter-btn" data-period="30d">30 ngày qua</button>
+          <button class="time-filter-btn" data-period="all">Toàn thời gian</button>
+        </div>
+      </div>
+
       <!-- Hero KPI Cards -->
       <div class="kpi-grid">
         <div class="glass-card kpi-card emerald">
@@ -199,10 +213,24 @@
         </div>
       </div>
 
+      <!-- Detail Time Range Filter Bar -->
+      <div style="display:flex;justify-content:space-between;align-items:center;margin:1.25rem 0;flex-wrap:wrap;gap:12px;background:rgba(255,255,255,0.02);padding:10px 16px;border-radius:var(--radius-md);border:1px solid var(--border-color);">
+        <div style="font-size:0.9rem;font-weight:600;color:var(--text-muted);display:flex;align-items:center;gap:8px;">
+          <span>📅</span> Lọc theo thời gian: <span id="detailPeriodLabel" style="color:var(--accent-cyan);font-weight:700">7 ngày qua</span>
+        </div>
+        <div class="time-filter-group" id="detailTimeFilters">
+          <button class="time-filter-btn" data-period="today">Hôm nay</button>
+          <button class="time-filter-btn" data-period="yesterday">Hôm qua</button>
+          <button class="time-filter-btn active" data-period="7d">7 ngày qua</button>
+          <button class="time-filter-btn" data-period="30d">30 ngày qua</button>
+          <button class="time-filter-btn" data-period="all">Toàn thời gian</button>
+        </div>
+      </div>
+
       <!-- Timeline Chart -->
       <div class="glass-card chart-card">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;">
-          <h3 style="font-size:1rem;font-weight:600;color:var(--text-muted)">Lưu lượng & Người dùng 7 ngày gần nhất</h3>
+          <h3 style="font-size:1rem;font-weight:600;color:var(--text-muted)" id="chartTitle">Lưu lượng & Người dùng</h3>
         </div>
         <div style="height:260px;position:relative;">
           <canvas id="timelineChart"></canvas>

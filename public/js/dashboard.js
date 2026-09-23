@@ -7,7 +7,9 @@ const AppState = {
   overview: null,
   chartInstance: null,
   sseConnection: null,
-  searchQuery: ''
+  searchQuery: '',
+  overviewPeriod: '7d',
+  detailPeriod: '7d'
 };
 
 // Utilities
@@ -69,11 +71,12 @@ document.addEventListener('DOMContentLoaded', () => {
   setupTabs();
   setupIntegrationHub();
   setupSearch();
+  setupTimeFilters();
   loadOverview();
   loadProjects();
   initRealtimeSSE();
 
-  // Tự động đồng bộ số liệu mới mỗi 8 giây (đảm bảo hoạt động trên môi trường Edge / Serverless)
+  // Tự động đồng bộ số liệu mới mỗi 8 giây
   setInterval(() => {
     if (AppState.currentTab === 'overview') {
       loadOverview();
@@ -81,6 +84,31 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }, 8000);
 });
+
+// Setup Time Range Filters (Hôm nay, Hôm qua, 7 ngày, 30 ngày, Toàn thời gian)
+function setupTimeFilters() {
+  const overviewBtns = document.querySelectorAll('#overviewTimeFilters .time-filter-btn');
+  overviewBtns.forEach(btn => {
+    btn.addEventListener('click', () => {
+      overviewBtns.forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      AppState.overviewPeriod = btn.getAttribute('data-period');
+      loadOverview();
+    });
+  });
+
+  const detailBtns = document.querySelectorAll('#detailTimeFilters .time-filter-btn');
+  detailBtns.forEach(btn => {
+    btn.addEventListener('click', () => {
+      detailBtns.forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      AppState.detailPeriod = btn.getAttribute('data-period');
+      if (AppState.activeProjectId) {
+        loadProjectDetail(AppState.activeProjectId, false);
+      }
+    });
+  });
+}
 
 // Real-time Server-Sent Events (SSE)
 function initRealtimeSSE() {
@@ -165,9 +193,12 @@ function handleLiveEvent(data) {
 // Load Overview Metrics
 async function loadOverview() {
   try {
-    const res = await fetch('/api/v1/dashboard/overview');
+    const res = await fetch(`/api/v1/dashboard/overview?period=${encodeURIComponent(AppState.overviewPeriod)}`);
     const data = await res.json();
     AppState.overview = data;
+
+    const labelEl = document.getElementById('overviewPeriodLabel');
+    if (labelEl) labelEl.textContent = data.periodLabel || '7 ngày qua';
 
     document.getElementById('kpiActiveNow').textContent = formatNumber(data.activeNow);
     
@@ -314,10 +345,20 @@ async function viewProjectDetail(projectId) {
 
 async function loadProjectDetail(projectId, scrollToTop = true) {
   try {
-    const res = await fetch(`/api/v1/dashboard/projects/${encodeURIComponent(projectId)}`);
+    const res = await fetch(`/api/v1/dashboard/projects/${encodeURIComponent(projectId)}?period=${encodeURIComponent(AppState.detailPeriod)}`);
     if (!res.ok) throw new Error('Không tìm thấy dự án');
     const data = await res.json();
     renderProjectDetail(data);
+
+    const labelEl = document.getElementById('detailPeriodLabel');
+    if (labelEl) labelEl.textContent = data.periodLabel || '7 ngày qua';
+
+    const chartTitle = document.getElementById('chartTitle');
+    if (chartTitle) {
+      chartTitle.textContent = data.isHourly
+        ? `Lưu lượng & Người dùng theo giờ (${data.periodLabel})`
+        : `Lưu lượng & Người dùng (${data.periodLabel})`;
+    }
 
     if (scrollToTop) {
       window.scrollTo({ top: 0, behavior: 'smooth' });
