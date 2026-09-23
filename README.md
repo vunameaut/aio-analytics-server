@@ -11,9 +11,22 @@ Hệ thống máy chủ thống kê tập trung cho tất cả các dự án **W
 
 ---
 
-## 🛠️ Hướng Dẫn Khởi Chạy Server
+## 🌐 Triển Khai Bản Online 24/7 (Miễn Phí)
 
-### 1. Khởi động máy chủ
+Mã nguồn đã được tự động tạo và đẩy lên GitHub của bạn:
+👉 **GitHub Repo**: [https://github.com/vunameaut/aio-analytics-server](https://github.com/vunameaut/aio-analytics-server)
+
+### Cách 1: Deploy lên Render.com (1-Click, Miễn Phí 24/7)
+1. Bấm vào link tạo nhanh:
+   👉 **[Deploy to Render](https://dashboard.render.com/select-repo?type=web)**
+2. Đăng nhập bằng GitHub của bạn (`vunameaut`), chọn repo `aio-analytics-server`.
+3. Bấm **Create Web Service**.
+4. Sau 1 phút, bạn sẽ có domain HTTPS công khai vĩnh viễn dạng:
+   `https://aio-analytics-server-xxxx.onrender.com`
+
+---
+
+## 🛠️ Hướng Dẫn Khởi Chạy Server Cục Bộ
 Trong thư mục dự án, chạy lệnh:
 ```bash
 npm start
